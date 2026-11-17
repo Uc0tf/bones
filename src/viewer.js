@@ -35,12 +35,15 @@ export class Viewer {
     this.listeners = { hover: [], click: [] };
     this._anim = null;
     this.insetBottom = 0; // px zakryté spodní kartou (test)
+    this.ghost = false; // průhledné okolí vybrané kosti (prohlížení)
+    this.clipPlane = null; // řez modelem (THREE.Plane) nebo null
 
     const r = (this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: false }));
     r.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     r.outputColorSpace = THREE.SRGBColorSpace;
     r.toneMapping = THREE.ACESFilmicToneMapping;
     r.toneMappingExposure = 1.05;
+    r.localClippingEnabled = true;
     container.appendChild(r.domElement);
 
     this.scene = new THREE.Scene();
@@ -262,8 +265,10 @@ export class Viewer {
   pick() {
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const objs = [...this.visible].map((id) => this.meshes.get(id)).filter(Boolean);
-    const hits = this.raycaster.intersectObjects(objs, false);
-    // průhledné okolí v testu: preferovat cíl
+    let hits = this.raycaster.intersectObjects(objs, false);
+    // odříznutá část modelu se nedá vybrat
+    if (this.clipPlane) hits = hits.filter((h) => this.clipPlane.distanceToPoint(h.point) >= 0);
+    // průhledné okolí: preferovat neprůhledné (zvýrazněné) kosti
     const hit = hits.find((h) => h.object.material.opacity > 0.5) || hits[0];
     return hit ? hit.object.userData.id : null;
   }
@@ -284,6 +289,31 @@ export class Viewer {
   setHoverEnabled(on) {
     this.hoverEnabled = on;
     if (!on) this._setHover(null, null);
+  }
+
+  /** Průhledné okolí (v prohlížení): vybraná/najetá kost zůstane neprůhledná. */
+  setGhost(on) {
+    this.ghost = on;
+    this._refreshMaterials();
+  }
+
+  /**
+   * Řez modelem. axis: 'x' | 'y' | 'z', value: souřadnice roviny, keep: +1/-1 (která strana zůstane).
+   * null = bez řezu.
+   */
+  setClip(cfg) {
+    if (!cfg) {
+      this.clipPlane = null;
+    } else {
+      const n = new THREE.Vector3(cfg.axis === 'x' ? 1 : 0, cfg.axis === 'y' ? 1 : 0, cfg.axis === 'z' ? 1 : 0).multiplyScalar(cfg.keep);
+      // body s n·p + c >= 0 zůstanou
+      this.clipPlane = new THREE.Plane(n, -cfg.keep * cfg.value);
+    }
+    for (const m of this.meshes.values()) {
+      m.material.clippingPlanes = this.clipPlane ? [this.clipPlane] : null;
+      m.material.side = this.clipPlane ? THREE.DoubleSide : THREE.FrontSide;
+      m.material.needsUpdate = true;
+    }
   }
 
   /** Režim testu: zvýrazní cílovou kost. */
@@ -309,9 +339,15 @@ export class Viewer {
         } else if (this.dimOthers) {
           opacity = 0.22;
         }
-      } else if (id === this.selected) {
-        mat.color.copy(SELECT);
-        mat.emissive.copy(SELECT).multiplyScalar(0.25);
+      } else {
+        if (id === this.selected) {
+          mat.color.copy(SELECT);
+          mat.emissive.copy(SELECT).multiplyScalar(0.25);
+        }
+        if (this.ghost) {
+          const focus = id === this.selected || (id === this.hovered && this.selected === null);
+          opacity = focus ? 1 : this.selected ? 0.16 : 0.35;
+        }
       }
       if (id === this.hovered && this.hoverEnabled !== false) {
         mat.emissive.copy(HOVER).multiplyScalar(0.45);
@@ -321,6 +357,10 @@ export class Viewer {
       mat.transparent = opacity < 1;
       mat.depthWrite = opacity >= 0.5;
       m.renderOrder = opacity < 1 ? 1 : 0;
+      // zvýrazněná kost v průhledném okolí: kreslit navrch, aby barvu nepřekryly vrstvy okolí
+      const onTop = (this.target && id === this.target && this.dimOthers) || (this.ghost && !this.target && id === this.selected);
+      mat.depthTest = !onTop;
+      if (onTop) m.renderOrder = 2;
       mat.needsUpdate = true;
     }
   }
@@ -330,7 +370,8 @@ export class Viewer {
     const m = this.meshes.get(id);
     if (!m) return { dir: candidates[0], score: 1 };
     const center = m.geometry.boundingSphere.center.clone().applyMatrix4(m.matrixWorld);
-    const radius = m.geometry.boundingSphere.radius;
+    // poloměr ve světových souřadnicích (geometrie je kvantovaná a má měřítko v uzlu)
+    const radius = m.geometry.boundingSphere.radius * m.matrixWorld.getMaxScaleOnAxis();
     const pos = m.geometry.attributes.position;
     const samples = [];
     const step = Math.max(1, Math.floor(pos.count / 24));
@@ -347,7 +388,7 @@ export class Viewer {
         // pozorovatel daleko ve směru d
         const origin = s.clone().addScaledVector(d, 3);
         rc.set(origin, d.clone().negate());
-        rc.far = 3 - radius * 0.02;
+        rc.far = 3 - Math.min(radius * 0.02, 0.0005);
         const hit = rc.intersectObjects(others, false);
         if (!hit.length) visible++;
       }

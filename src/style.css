@@ -359,10 +359,46 @@ button {
   display: block;
 }
 .bone-item .l {
-  font-size: 12px;
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+.bone-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.bone-row .bone-item {
+  flex: 1;
+  min-width: 0;
+}
+.bone-row .eye {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  background: none;
+  border-radius: 8px;
   color: var(--text-3);
-  font-style: italic;
-  font-family: var(--serif);
+  opacity: 0;
+  display: grid;
+  place-items: center;
+}
+.bone-row:hover .eye,
+.bone-row .eye:focus-visible,
+.bone-row.is-hidden .eye {
+  opacity: 1;
+}
+.bone-row .eye:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.bone-row.is-hidden .bone-item {
+  opacity: 0.45;
+}
+@media (hover: none) {
+  .bone-row .eye {
+    opacity: 1;
+  }
 }
 .bone-item .side {
   font-size: 10px;
@@ -417,10 +453,70 @@ button {
   color: var(--text-2);
   box-shadow: var(--shadow);
 }
+.tool-btn {
+  display: grid;
+  place-items: center;
+  position: relative;
+}
 .tool-btn:hover,
 .tool-btn.active {
   color: var(--accent);
   border-color: var(--accent);
+}
+.tool-btn.active {
+  background: var(--accent-soft);
+}
+.badge-btn b {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--target);
+  color: #fff;
+  font-size: 11px;
+  display: grid;
+  place-items: center;
+  padding: 0 4px;
+}
+.cut-panel {
+  position: absolute;
+  top: 14px;
+  right: 64px;
+  width: 270px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+  z-index: 3;
+}
+.cut-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+.cut-head .x {
+  border: 0;
+  background: none;
+  color: var(--text-3);
+  font-size: 16px;
+}
+.cut-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.cut-row input {
+  flex: 1;
+  accent-color: var(--accent);
+}
+.cut-row .btn {
+  padding: 4px 10px;
 }
 
 .tooltip {
@@ -455,17 +551,32 @@ button {
 .bone-item .n::first-letter {
   text-transform: uppercase;
 }
+.tooltip .t-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 4px;
+}
+.lt {
+  flex: none;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 4px;
+  min-width: 30px;
+  text-align: center;
+}
 .tooltip .t-latin {
-  font-family: var(--serif);
-  font-style: italic;
   font-size: 15px;
-  color: var(--accent-text);
-  margin-top: 2px;
+  font-weight: 500;
+  color: var(--text);
 }
 .tooltip .t-other {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-2);
-  margin-top: 3px;
 }
 .tooltip .t-meta {
   font-size: 11px;
@@ -535,9 +646,7 @@ button {
   margin: 0;
 }
 .info-card dd.la {
-  font-family: var(--serif);
-  font-style: italic;
-  color: var(--accent-text);
+  font-weight: 600;
 }
 .info-card .row {
   display: flex;
@@ -842,9 +951,6 @@ button {
   color: var(--text);
   letter-spacing: 0.01em;
 }
-.hint-full.la {
-  font-style: italic;
-}
 .slots {
   display: flex;
   flex-wrap: wrap;
@@ -952,8 +1058,7 @@ button {
   line-height: 1.5;
 }
 .feedback .fb-names .la {
-  font-family: var(--serif);
-  font-style: italic;
+  font-weight: 600;
 }
 
 /* ------------------------------------------------ dialogs */
@@ -1034,9 +1139,7 @@ button {
   text-transform: uppercase;
 }
 .mistake .la {
-  font-family: var(--serif);
-  font-style: italic;
-  color: var(--accent-text);
+  font-weight: 600;
 }
 .mistake .yours {
   color: var(--bad);
@@ -1155,4 +1258,12 @@ body[data-mode='test'] .explore-only {
     height: 28px;
     font-size: 16px;
   }
+}
+
+.lang-pair {
+  white-space: nowrap;
+  margin-right: 10px;
+}
+.lang-pair .lt {
+  vertical-align: 1px;
 }

@@ -15,10 +15,11 @@ export const GROUPS = {
   neuro: { cs: 'Mozková část lebky', en: 'Neurocranium' },
   viscero: { cs: 'Obličejová část lebky', en: 'Viscerocranium (facial skeleton)' },
   teeth: { cs: 'Zuby', en: 'Teeth' },
+  ossicles: { cs: 'Sluchové kůstky', en: 'Auditory ossicles' },
   cervical: { cs: 'Krční obratle', en: 'Cervical vertebrae' },
   thoracicV: { cs: 'Hrudní obratle', en: 'Thoracic vertebrae' },
   lumbar: { cs: 'Bederní obratle', en: 'Lumbar vertebrae' },
-  sacral: { cs: 'Kost křížová', en: 'Sacrum' },
+  sacral: { cs: 'Kost křížová a kostrč', en: 'Sacrum and coccyx' },
   discs: { cs: 'Meziobratlové ploténky', en: 'Intervertebral discs' },
   sternum: { cs: 'Hrudní kost', en: 'Sternum' },
   ribs: { cs: 'Žebra', en: 'Ribs' },
@@ -52,6 +53,7 @@ const GROUP_REGIONS = {
   neuro: ['skull'],
   viscero: ['skull'],
   teeth: ['skull'],
+  ossicles: ['skull'],
   cervical: ['spine'],
   thoracicV: ['spine', 'thorax'],
   lumbar: ['spine'],
@@ -137,6 +139,11 @@ add('viscero', { cs: 'kost radličná', en: 'vomer', la: 'vomer', laG: 'm', alt:
 add('viscero', { cs: 'dolní skořepa nosní', en: 'inferior nasal concha', la: 'concha nasalis inferior', laG: 'f', alt: { cs: ['skořepa nosní dolní'] } }, { R: 'FMA54737', L: 'FMA54738' });
 add('viscero', { cs: 'jazylka', en: 'hyoid bone', la: 'os hyoideum', alt: { en: ['hyoid'], cs: ['kost jazylková'] } }, { C: 'FMA52749' });
 
+// Sluchové kůstky (model ze Z-Anatomy, viz scripts/build-model.mjs)
+add('ossicles', { cs: 'kladívko', csG: 'n', en: 'malleus', la: 'malleus', laG: 'm', alt: { en: ['hammer'] }, info: 'ossicula auditus' }, { R: 'ZA_MALLEUS_R', L: 'ZA_MALLEUS_L' });
+add('ossicles', { cs: 'kovadlinka', csG: 'f', en: 'incus', la: 'incus', laG: 'f', alt: { en: ['anvil'] }, info: 'ossicula auditus' }, { R: 'ZA_INCUS_R', L: 'ZA_INCUS_L' });
+add('ossicles', { cs: 'třmínek', csG: 'm', en: 'stapes', la: 'stapes', laG: 'm', alt: { en: ['stirrup'] }, info: 'ossicula auditus' }, { R: 'ZA_STAPES_R', L: 'ZA_STAPES_L' });
+
 // ---------------------------------------------------------------- ZUBY (stálé, bez třetích stoliček)
 {
   const types = [
@@ -207,6 +214,7 @@ vertebrae('cervical', 'krční', 'cervical', 'cervicalis', 'C', ['FMA12521', 'FM
 vertebrae('thoracicV', 'hrudní', 'thoracic', 'thoracica', 'T', ['FMA9165', 'FMA9187', 'FMA9209', 'FMA9248', 'FMA9922', 'FMA9945', 'FMA9968', 'FMA9991', 'FMA10014', 'FMA10037', 'FMA10059', 'FMA10081']);
 vertebrae('lumbar', 'bederní', 'lumbar', 'lumbalis', 'L', ['FMA13072', 'FMA13073', 'FMA13074', 'FMA13075', 'FMA13076']);
 add('sacral', { cs: 'kost křížová', en: 'sacrum', la: 'os sacrum', alt: { cs: ['křížová kost'], la: ['sacrum'] } }, { C: 'FMA16202' });
+add('sacral', { cs: 'kostrč', en: 'coccyx', la: 'os coccygis', alt: { cs: ['kost kostrční'], en: ['tailbone', 'tail bone'], la: ['coccyx'] } }, { C: 'ZA_COCCYX' });
 
 {
   const segs = [

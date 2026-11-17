@@ -68,8 +68,17 @@
           <div class="view-tools">
             <button class="tool-btn" id="resetBtn" data-i18n-title="resetView">⟲</button>
             <button class="tool-btn" id="rotateBtn" data-i18n-title="autoRotate">↻</button>
-            <button class="tool-btn test-only" id="xrayBtn" data-i18n-title="xray">◌</button>
+            <button class="tool-btn" id="xrayBtn" data-i18n-title="xray">
+              <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="12" r="6" stroke-dasharray="3 2.5"/><circle cx="15" cy="12" r="6"/></svg>
+            </button>
+            <button class="tool-btn" id="cutBtn" data-i18n-title="cut">
+              <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/></svg>
+            </button>
+            <button class="tool-btn explore-only badge-btn" id="unhideBtn" data-i18n-title="showHidden" hidden>
+              <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><b>0</b>
+            </button>
           </div>
+          <div class="cut-panel" id="cutPanel" hidden></div>
           <div class="tooltip" id="tooltip" hidden></div>
           <div class="hint-bar explore-only" id="hintBar"></div>
           <div class="info-card explore-only" id="infoCard" hidden></div>

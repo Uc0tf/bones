@@ -41,6 +41,9 @@ const state = {
   selected: null,
   isolated: false,
   autoRotate: false,
+  hidden: new Set(), // ručně skryté kosti (prohlížení)
+  ghost: false, // průhledné okolí
+  clip: null, // { axis: 'x'|'y'|'z', t: 0..1, keep: 1|-1 }
   quizCfg: store.get('quizCfg', { difficulty: 'easy', answerLang: 'cs', count: 10, teeth: false, cartilage: false }),
   quiz: null,
 };
@@ -106,9 +109,96 @@ function applyVisibility({ frame = true, animate = true } = {}) {
   } else {
     ids = exploreEntries().map((e) => e.id);
   }
-  viewer.setVisible(ids);
+  const shown = state.mode === 'explore' ? ids.filter((id) => !state.hidden.has(id) || id === state.selected) : ids;
+  viewer.setVisible(shown);
   if (frame) viewer.frameBox(viewer.boxOf(ids), regionViewDir(), { animate });
+  // řez se počítá z oblasti, aby se při skrývání kostí neposouval
+  clipBox = viewer.boxOf(ids);
+  applyClip();
+  renderHiddenBtn();
 }
+
+// ------------------------------------------------------------------ skrývání kostí
+function hideBone(id) {
+  if (!id) return;
+  state.hidden.add(id);
+  if (state.selected === id) selectBone(null);
+  tip.hidden = true;
+  applyVisibility({ frame: false });
+  renderList();
+}
+function unhideBone(id) {
+  state.hidden.delete(id);
+  applyVisibility({ frame: false });
+  renderList();
+}
+function renderHiddenBtn() {
+  const n = exploreEntries().filter((e) => state.hidden.has(e.id)).length;
+  const b = $('#unhideBtn');
+  b.hidden = state.mode !== 'explore' || n === 0;
+  b.querySelector('b').textContent = n;
+}
+
+// ------------------------------------------------------------------ řez
+const AXES = { x: 'cutSagittal', z: 'cutFrontal', y: 'cutHorizontal' };
+let clipBox = null;
+function applyClip() {
+  if (!state.clip || !clipBox || clipBox.isEmpty()) {
+    viewer.setClip(null);
+    return;
+  }
+  const { axis, t: f, keep } = state.clip;
+  const lo = clipBox.min[axis], hi = clipBox.max[axis];
+  // keep=+1 zachová část s větší souřadnicí -> posuvník jde od "nic neodříznuto" k "vše odříznuto"
+  const value = keep > 0 ? lo + (hi - lo) * f : hi - (hi - lo) * f;
+  viewer.setClip({ axis, value, keep });
+}
+function renderCutPanel() {
+  const p = $('#cutPanel');
+  $('#cutBtn').classList.toggle('active', !!state.clip);
+  if (!state.clip) {
+    p.hidden = true;
+    return;
+  }
+  p.hidden = false;
+  p.innerHTML = `<div class="cut-head"><b>${t('cut')}</b><button class="x" data-cut="off" aria-label="${t('close')}">✕</button></div>
+    <div class="chip-row">${Object.entries(AXES)
+      .map(([a, k]) => `<button class="chip ${state.clip.axis === a ? 'active' : ''}" data-axis="${a}">${t(k)}</button>`)
+      .join('')}</div>
+    <div class="cut-row"><input type="range" min="0" max="0.98" step="0.005" value="${state.clip.t}" id="cutRange" aria-label="${t('cut')}" />
+    <button class="btn" data-cut="flip" title="${t('flip')}">⇄</button></div>`;
+}
+$('#cutBtn').addEventListener('click', () => {
+  state.clip = state.clip ? null : { axis: 'x', t: 0.5, keep: 1 };
+  renderCutPanel();
+  applyClip();
+});
+$('#cutPanel').addEventListener('click', (e) => {
+  const a = e.target.closest('[data-axis]')?.dataset.axis;
+  const c = e.target.closest('[data-cut]')?.dataset.cut;
+  if (a) state.clip = { axis: a, t: 0.5, keep: 1 };
+  if (c === 'off') state.clip = null;
+  if (c === 'flip') state.clip.keep *= -1;
+  if (a || c) {
+    renderCutPanel();
+    applyClip();
+  }
+});
+$('#cutPanel').addEventListener('input', (e) => {
+  if (e.target.id !== 'cutRange') return;
+  state.clip.t = Number(e.target.value);
+  applyClip();
+});
+$('#unhideBtn').addEventListener('click', () => {
+  for (const e of exploreEntries()) state.hidden.delete(e.id);
+  applyVisibility({ frame: false });
+  renderList();
+});
+addEventListener('keydown', (e) => {
+  if (state.mode !== 'explore' || e.target.closest('input, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'h' || e.key === 'H') hideBone(viewer.hovered || state.selected);
+  if (e.key === 'Escape') selectBone(null);
+});
 
 // ------------------------------------------------------------------ i18n
 function applyI18n() {
@@ -130,11 +220,13 @@ function aboutHtml() {
     return `<p>Interaktivní 3D atlas lidské kostry. V režimu <b>Prozkoumat</b> najeďte myší na libovolnou kost a zobrazí se její český, anglický a latinský název. Oblasti těla (lebka, páteř, ruka, noha…) si můžete zobrazit samostatně. V režimu <b>Test</b> si názvy procvičíte ve třech obtížnostech.</p>
       <p><b>3D modely:</b> <a href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/" target="_blank" rel="noopener">BodyParts3D</a>, © The Database Center for Life Science, licence <a href="https://creativecommons.org/licenses/by-sa/2.1/jp/deed.en" target="_blank" rel="noopener">CC BY-SA 2.1 Japan</a> (zjednodušeno pro web). Identifikátory podle ontologie FMA.</p>
       <p><b>Názvosloví:</b> latinsky podle Terminologia Anatomica, česky podle běžné české anatomické terminologie.</p>
-      <p>Model neobsahuje kostrč a sluchové kůstky (nejsou v datech BodyParts3D 3.0).</p>`;
+      <p><b>Sluchové kůstky a kostrč:</b> <a href="https://github.com/LluisV/Z-Anatomy" target="_blank" rel="noopener">Z-Anatomy</a>, licence CC BY-SA 4.0 (v BodyParts3D chybí).</p>
+      <p><b>Vnitřní kosti:</b> použijte průhledné okolí, řez modelem nebo skryjte kosti, které překážejí (klávesa H nebo ikona oka v seznamu).</p>`;
   return `<p>An interactive 3D atlas of the human skeleton. In <b>Explore</b> mode hover any bone to see its English, Czech and Latin name. Body regions (skull, spine, hand, foot…) can be viewed on their own. In <b>Quiz</b> mode you can practise the names at three difficulty levels.</p>
     <p><b>3D models:</b> <a href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/" target="_blank" rel="noopener">BodyParts3D</a>, © The Database Center for Life Science, licensed <a href="https://creativecommons.org/licenses/by-sa/2.1/jp/deed.en" target="_blank" rel="noopener">CC BY-SA 2.1 Japan</a> (simplified for the web). Identifiers follow the FMA ontology.</p>
     <p><b>Nomenclature:</b> Latin per Terminologia Anatomica; Czech per standard Czech anatomical terminology.</p>
-    <p>The model does not include the coccyx and the auditory ossicles (absent from BodyParts3D 3.0).</p>`;
+    <p><b>Auditory ossicles and coccyx:</b> <a href="https://github.com/LluisV/Z-Anatomy" target="_blank" rel="noopener">Z-Anatomy</a>, licensed CC BY-SA 4.0 (missing from BodyParts3D).</p>
+    <p><b>Inner bones:</b> use see-through mode, the section cut, or hide bones that are in the way (H key or the eye icon in the list).</p>`;
 }
 
 function applyTheme() {
@@ -160,6 +252,7 @@ $('#regionGrid').addEventListener('click', (e) => {
   if (!b || state.quiz) return;
   state.region = b.dataset.region;
   state.isolated = false;
+  state.hidden.clear();
   if (state.selected && !exploreEntries().some((x) => x.id === state.selected)) selectBone(null);
   renderRegions();
   renderList();
@@ -205,7 +298,7 @@ function renderList() {
         `<div class="bone-group"><h3>${esc(GROUPS[g][state.lang])}</h3>${list
           .map(
             (e) =>
-              `<button class="bone-item ${e.id === state.selected ? 'active' : ''}" data-id="${e.id}"><span class="n">${esc(e.base[state.lang])}${sideTag(e)}</span><span class="l">${esc(e.base.la)}</span></button>`,
+              `<div class="bone-row ${state.hidden.has(e.id) ? 'is-hidden' : ''}"><button class="bone-item ${e.id === state.selected ? 'active' : ''}" data-id="${e.id}"><span class="n">${esc(e.base[state.lang])}${sideTag(e)}</span><span class="l">${esc(e.base.la)}</span></button><button class="eye" data-eye="${e.id}" title="${state.hidden.has(e.id) ? t('show') : t('hide')}" aria-label="${state.hidden.has(e.id) ? t('show') : t('hide')}">${state.hidden.has(e.id) ? EYE_OFF : EYE}</button></div>`,
           )
           .join('')}</div>`,
     )
@@ -216,9 +309,19 @@ $('#search').addEventListener('input', (e) => {
   state.search = e.target.value;
   renderList();
 });
+const EYE = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.8-1.3"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
 $('#boneList').addEventListener('click', (e) => {
+  const eye = e.target.closest('[data-eye]');
+  if (eye) {
+    const id = eye.dataset.eye;
+    state.hidden.has(id) ? unhideBone(id) : hideBone(id);
+    return;
+  }
   const b = e.target.closest('[data-id]');
-  if (b) selectBone(b.dataset.id, { focus: true });
+  if (!b) return;
+  if (state.hidden.has(b.dataset.id)) unhideBone(b.dataset.id);
+  selectBone(b.dataset.id, { focus: true });
 });
 $('#boneList').addEventListener('mouseover', (e) => {
   const b = e.target.closest('[data-id]');
@@ -252,8 +355,8 @@ function tooltipHtml(e) {
   const other = fullName(e, otherLang());
   const meta = [GROUPS[e.group][state.lang], e.info].filter(Boolean).join(' · ');
   return `<div class="t-main">${esc(main)}</div>
-    <div class="t-latin">${esc(fullName(e, 'la'))}</div>
-    <div class="t-other">${state.lang === 'cs' ? 'EN' : 'CZ'}: ${esc(other)}</div>
+    <div class="t-row"><span class="lt">LAT</span><span class="t-latin">${esc(fullName(e, 'la'))}</span></div>
+    <div class="t-row"><span class="lt">${state.lang === 'cs' ? 'EN' : 'CZ'}</span><span class="t-other">${esc(other)}</span></div>
     <div class="t-meta">${esc(meta)}</div>`;
 }
 function positionTip(pos) {
@@ -302,7 +405,9 @@ function selectBone(id, { focus = false } = {}) {
 function focusBone(id) {
   const box = viewer.boxOf([id]);
   const r = box.getBoundingSphere(new THREE.Sphere()).radius;
-  const dir = viewer.bestViewDir(id, candidateDirs()).dir;
+  const { dir, score } = viewer.bestViewDir(id, candidateDirs());
+  // kost schovaná uvnitř (čichová kost, sluchové kůstky…) -> průhledné okolí
+  if (score < 0.6 && !state.ghost && !state.isolated) setGhost(true);
   viewer.frameBox(box, dir, { minRadius: Math.max(r * 2.2, 0.03) });
 }
 
@@ -344,6 +449,7 @@ function renderInfo() {
     <div class="row">
       <button class="btn" data-act="focus">🔍 ${t('focus')}</button>
       <button class="btn" data-act="isolate">${state.isolated ? '👁 ' + t('showAll') : '◎ ' + t('isolate')}</button>
+      <button class="btn" data-act="hide">${t('hide')}</button>
     </div>`;
   card.hidden = false;
 }
@@ -351,6 +457,7 @@ function renderInfo() {
 $('#infoCard').addEventListener('click', (e) => {
   const act = e.target.closest('[data-act]')?.dataset.act;
   if (act === 'close') selectBone(null);
+  if (act === 'hide') hideBone(state.selected);
   if (act === 'focus') focusBone(state.selected);
   if (act === 'isolate') {
     state.isolated = !state.isolated;
@@ -378,7 +485,13 @@ $('#rotateBtn').addEventListener('click', () => {
   viewer.setAutoRotate(state.autoRotate);
   $('#rotateBtn').classList.toggle('active', state.autoRotate);
 });
+function setGhost(on) {
+  state.ghost = on;
+  viewer.setGhost(on && state.mode === 'explore');
+  $('#xrayBtn').classList.toggle('active', on);
+}
 $('#xrayBtn').addEventListener('click', () => {
+  if (state.mode === 'explore') return setGhost(!state.ghost);
   if (!state.quiz?.current) return;
   state.quiz.xray = !state.quiz.xray;
   viewer.setTarget(state.quiz.current.id, { dim: state.quiz.xray });
@@ -395,12 +508,15 @@ function setMode(mode) {
     if (state.quiz) endQuiz(false);
     viewer.setHoverEnabled(true);
     viewer.setTarget(null);
+    setGhost(state.ghost);
     viewer.setSelected(state.selected);
     renderInfo();
     applyVisibility();
   } else {
     viewer.setHoverEnabled(false);
     viewer.setSelected(null);
+    viewer.setGhost(false);
+    $('#xrayBtn').classList.remove('active');
     state.isolated = false;
     renderTestPanel();
     applyVisibility();
@@ -420,6 +536,7 @@ document.querySelectorAll('.lang-switch button').forEach((b) =>
     renderList();
     renderInfo();
     renderTestPanel();
+    renderCutPanel();
     if (state.quiz?.current) renderQuizCard();
     tip.hidden = true;
   }),
@@ -586,6 +703,9 @@ function showQuestionView(animate = true) {
   const tR = tBox.getBoundingSphere(new THREE.Sphere()).radius;
   if (FOCUS_REGIONS.has(state.region) && tR < regionR * 0.35) {
     viewer.frameBox(tBox, dir, { animate, minRadius: Math.min(regionR, Math.max(tR * 3.2, 0.06)) });
+  } else if (tR < regionR * 0.04) {
+    // velmi drobná kost (sluchové kůstky) – přiblížit výrazně
+    viewer.frameBox(tBox, dir, { animate, minRadius: Math.max(tR * 4, 0.01) });
   } else if (ZOOM_SMALL.has(state.region) && tR < regionR * 0.15) {
     // malá kost ve velké oblasti (zub v lebce) – přiblížit, ale nechat okolí
     viewer.frameBox(tBox, dir, { animate, minRadius: Math.max(tR * 4, regionR * 0.5) });
@@ -685,13 +805,22 @@ function answer(input) {
   $('#quizFeedback').innerHTML = `<div class="feedback ${cls}">
       <div class="fb-title">${title}</div>
       ${showNames ? `<div class="fb-names">${res.result !== 'correct' ? `${t('correctAnswer')}: <b>${esc(e.base[L])}</b><br/>` : ''}
-        <span class="la">${esc(e.base.la)}</span> · ${esc(e.base[L === 'cs' ? 'en' : 'cs'])}</div>` : ''}
+        ${langLine(e, L)}</div>` : ''}
     </div>`;
   const last = q.index + 1 >= q.questions.length;
   $('#quizSubmit').textContent = last ? t('finish') : t('next') + ' →';
   $('#quizSkip').hidden = true;
   $('#quizSubmit').focus({ preventScroll: true });
   renderTestPanel();
+}
+
+/** Ostatní jazyky (kromě jazyka odpovědi) se štítky. */
+function langLine(e, L) {
+  const tag = { cs: 'CZ', en: 'EN', la: 'LAT' };
+  return ['la', 'cs', 'en']
+    .filter((l) => l !== L)
+    .map((l) => `<span class="lang-pair"><span class="lt">${tag[l]}</span> <span class="${l === 'la' ? 'la' : ''}">${esc(e.base[l])}</span></span>`)
+    .join(' ');
 }
 
 function advance() {
@@ -717,7 +846,7 @@ function showResults() {
             .map((a) => {
               const e = BY_ID[a.id];
               return `<div class="mistake"><div class="exp">${esc(e.base[L])} ${a.result === 'almost' ? '<span style="color:var(--warn)">≈</span>' : ''}</div>
-              <div><span class="la">${esc(e.base.la)}</span> · ${esc(e.base[L === 'cs' ? 'en' : 'cs'])}</div>
+              <div>${langLine(e, L)}</div>
               ${a.input ? `<div class="yours">${t('yourAnswer')}: ${esc(a.input)}</div>` : `<div class="yours">${t('skipped')}</div>`}</div>`;
             })
             .join('')}</div>`
@@ -747,7 +876,7 @@ function endQuiz(rerender = true) {
   viewer.setTarget(null);
   $('#quizCard').hidden = true;
   updateInset();
-  $('#xrayBtn').classList.remove('active');
+  $('#xrayBtn').classList.toggle('active', state.mode === 'explore' && state.ghost);
   renderTestPanel();
   if (rerender !== null) applyVisibility();
 }
