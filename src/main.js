@@ -880,7 +880,7 @@ function answer(input) {
   const e = q.current;
   const L = q.cfg.answerLang;
   const res = input ? checkAnswer(e, L, input.replace(/·/g, ''), q.cfg.difficulty) : { result: 'wrong', expected: e.base[L] };
-  q.answers.push({ id: e.id, input, result: res.result, skipped: !input });
+  q.answers.push({ id: e.id, input: input.replace(/·/g, '_'), result: res.result, skipped: !input });
   q.answered = true;
   const inp = $('#quizInput');
   inp.readOnly = true;
@@ -900,6 +900,8 @@ function answer(input) {
   $('#quizSkip').hidden = true;
   // vstup zůstává fokusovaný -> Enter přejde na další otázku
   if (!isTouch) (inp.classList.contains('slot-hidden') ? inp : $('#quizSubmit')).focus({ preventScroll: true });
+  // na dotykovém zařízení schovat klávesnici, ať je vidět výsledek i model
+  else document.activeElement?.blur();
   renderTestPanel();
 }
 
@@ -1053,6 +1055,46 @@ function updateInset() {
 }
 new ResizeObserver(() => updateInset()).observe($('#quizCard'));
 addEventListener('resize', updateInset);
+
+// ------------------------------------------------------------------ softwarová klávesnice (tablet/mobil)
+// Safari na iPadu/iPhonu při otevření klávesnice nezmenší stránku, jen "viditelnou oblast".
+// Aplikaci proto zmenšíme na výšku nad klávesnicí, aby karta testu nebyla schovaná pod ní.
+let keyboardOpen = false;
+function onVisualViewport() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const covered = window.innerHeight - vv.height;
+  const open = vv.scale < 1.05 && covered > 120;
+  if (open) {
+    document.documentElement.style.setProperty('--app-h', `${Math.round(vv.height)}px`);
+    // iOS posouvá celou stránku nahoru – vrátit, aplikace už se vejde nad klávesnici
+    if (window.scrollY || vv.offsetTop) window.scrollTo(0, 0);
+  } else {
+    document.documentElement.style.removeProperty('--app-h');
+  }
+  if (open === keyboardOpen) return;
+  keyboardOpen = open;
+  requestAnimationFrame(() => {
+    viewer.resize();
+    updateInset();
+    const q = state.quiz;
+    // po otevření klávesnice znovu zaměřit kost do zmenšeného prostoru
+    if (q?.current && !q.answered) showQuestionView(true);
+    if (open) revealQuizCard();
+  });
+}
+window.visualViewport?.addEventListener('resize', onVisualViewport);
+window.visualViewport?.addEventListener('scroll', onVisualViewport);
+
+/** Na mobilu (karta je pod scénou ve sloupci) doscrollovat kartu do viditelné části. */
+function revealQuizCard() {
+  const card = $('#quizCard');
+  if (card.hidden || getComputedStyle(card).position === 'absolute') return;
+  card.scrollIntoView({ block: 'end', behavior: 'smooth' });
+}
+document.addEventListener('focusin', (e) => {
+  if (isTouch && e.target.id === 'quizInput') setTimeout(revealQuizCard, 350);
+});
 
 // ------------------------------------------------------------------ boot
 applyTheme();

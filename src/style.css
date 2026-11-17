@@ -69,6 +69,8 @@ html,
 body {
   margin: 0;
   height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
@@ -88,7 +90,8 @@ button {
 }
 
 #app {
-  height: 100dvh;
+  /* --app-h nastavuje JS, když je otevřená softwarová klávesnice (výška nad klávesnicí) */
+  height: var(--app-h, 100dvh);
   display: flex;
   flex-direction: column;
 }
@@ -1199,6 +1202,11 @@ body[data-mode='test'] .explore-only {
   }
 }
 @media (max-width: 900px) {
+  /* ve sloupcovém rozložení nesmí řádky mřížky smrštit obsah (jinak se při otevřené klávesnici překrývá) */
+  .layout > .stage,
+  .layout > .sidebar {
+    min-height: auto;
+  }
   body[data-mode='test'] .layout {
     grid-template-rows: auto auto;
   }
