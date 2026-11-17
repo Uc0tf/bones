@@ -1120,17 +1120,13 @@ document.addEventListener('focusin', (e) => {
 function fsElement() {
   return document.fullscreenElement || document.webkitFullscreenElement;
 }
-// Safari na iPadu/iPhonu nedovolí psát na klávesnici ve skutečné celé obrazovce –
-// při klepnutí do pole ji samo ukončí. Při testu s psaním na dotykovém zařízení proto
-// celou obrazovku Safari nepoužíváme (menu se skryje jen stylem).
+// Skutečnou celou obrazovku prohlížeče (Fullscreen API) používáme jen na počítači s myší.
+// Na tabletu a mobilu režim jen skryje menu a panel – Safari na iPadu ve skutečné celé
+// obrazovce nedovolí psát na klávesnici a při klepnutí do pole ji samo ukončí.
 let fsExitExpected = 0; // čas, do kdy ukončení celé obrazovky nebereme jako přání uživatele
 let lastTextFocus = 0;
-function typingTest() {
-  const cfg = state.quiz?.cfg || state.quizCfg;
-  return state.mode === 'test' && cfg.type !== 'cards';
-}
 function realFullscreenAllowed() {
-  return !(isTouch && typingTest());
+  return !isTouch;
 }
 function exitRealFullscreen() {
   if (!fsElement()) return;
