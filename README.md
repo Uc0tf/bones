@@ -9,7 +9,7 @@ Běží přímo v prohlížeči (počítač, tablet i mobil), nic se neinstaluje
 - **Prozkoumat:** najeď myší na kost a zobrazí se její název česky, anglicky a latinsky. Oblasti: celá kostra, lebka, páteř, hrudník, horní končetina, ruka, pánev, dolní končetina, noha.
 - **Test – psaní:** zvýrazní se kost a napíšeš její název. Obtížnosti: lehká (název je předepsaný v políčkách), střední (část písmen je vyplněná, zbytek doplníš do políček), těžká (bez nápovědy). Odpovídat lze česky, anglicky nebo latinsky.
 - **Test – kartičky:** bez psaní, kartičky se otáčejí a sám hodnotíš „Znám / Neznám“. Směr kost → název nebo název → kost.
-- **Celá obrazovka:** tlačítko vpravo nahoře nebo klávesa F – zůstane jen model (a v testu karta s otázkou).
+- **Jen model (skrytí menu):** tlačítko vpravo nahoře nebo klávesa F – skryje lištu a panel, zůstane jen model (a v testu karta s otázkou).
 - **Vnitřní kosti:** průhledné okolí, řez modelem a skrývání kostí (klávesa H, ikona oka, na tabletu tlačítko „Skrýt“ v kartě kosti).
 
 ## Vývoj

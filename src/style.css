@@ -1593,8 +1593,7 @@ body.focus .layout {
   }
 }
 
-/* Celá obrazovka na dotykových zařízeních (iPad): systémová lišta s časem/baterií
-   a indikátor dole zasahují do stránky -> odsadit ovládací prvky od okrajů. */
+/* Bezpečné okraje zařízení (výřez displeje, indikátor dole na iPadu/iPhonu). */
 .view-tools,
 .cut-panel {
   top: calc(14px + env(safe-area-inset-top, 0px));
@@ -1605,7 +1604,7 @@ body.focus .layout {
 @media (hover: none) {
   body.focus .view-tools,
   body.focus .cut-panel {
-    top: calc(14px + max(env(safe-area-inset-top, 0px), 30px));
+    top: calc(14px + env(safe-area-inset-top, 0px));
   }
   body.focus .quiz-card,
   body.focus .focus-start {
