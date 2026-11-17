@@ -1,3 +1,10 @@
+// Písma jsou součástí webu (žádné požadavky na Google Fonts)
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
+import '@fontsource/fraunces/600.css';
+import '@fontsource/fraunces/500-italic.css';
 import './style.css';
 import * as THREE from 'three';
 import { CATALOG, BY_ID, GROUPS, REGIONS, fullName, sideLabel } from './data/catalog.js';

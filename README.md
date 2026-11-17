@@ -28,5 +28,6 @@ Složku `dist/` lze nahrát i na jakýkoli statický hosting (Netlify, Vercel…
 ## Zdroje a licence
 
 - 3D modely: [BodyParts3D](https://dbarchive.biosciencedbc.jp/en/bodyparts3d/), © The Database Center for Life Science, licence [CC BY-SA 2.1 Japan](https://creativecommons.org/licenses/by-sa/2.1/jp/deed.en). Modely jsou převzaty přes [mirror na GitHubu](https://github.com/Kevin-Mattheus-Moerman/BodyParts3D) a zjednodušeny pro web. Odvozený soubor `public/models/skeleton.glb` je šířen pod stejnou licencí (CC BY-SA).
+- Písma Inter a Fraunces (SIL Open Font License) jsou součástí webu přes Fontsource – web nevolá žádné externí služby.
 - Názvosloví: latinsky podle Terminologia Anatomica, česky podle běžné české anatomické terminologie.
 - Model neobsahuje kostrč a sluchové kůstky (nejsou v BodyParts3D 3.0).
