@@ -523,6 +523,7 @@ function setMode(mode) {
     applyVisibility();
   }
   renderFocusStart();
+  syncRealFullscreen();
   // změna rozložení na mobilu
   requestAnimationFrame(() => viewer.resize());
 }
@@ -683,6 +684,7 @@ function renderTestPanel() {
 
 function startQuiz(onlyIds) {
   $('#focusStart').hidden = true;
+  syncRealFullscreen();
   const cfg = { ...state.quizCfg };
   let pool = onlyIds ? onlyIds.map((id) => BY_ID[id]) : quizPool(cfg);
   pool = shuffle(pool);
@@ -1073,8 +1075,9 @@ function onVisualViewport() {
   const open = vv.scale < 1.05 && covered > 120;
   if (open) {
     document.documentElement.style.setProperty('--app-h', `${Math.round(vv.height)}px`);
-    // iOS posouvá celou stránku nahoru – vrátit, aplikace už se vejde nad klávesnici
-    if (window.scrollY || vv.offsetTop) window.scrollTo(0, 0);
+    // iOS posouvá celou stránku nahoru – vrátit, aplikace už se vejde nad klávesnici.
+    // Jen jednou při otevření, jinak by se to mohlo přetahovat s posunem, který dělá iOS.
+    if (!keyboardOpen && (window.scrollY || vv.offsetTop)) window.scrollTo(0, 0);
   } else {
     document.documentElement.style.removeProperty('--app-h');
   }
@@ -1089,8 +1092,17 @@ function onVisualViewport() {
     if (open) revealQuizCard();
   });
 }
-window.visualViewport?.addEventListener('resize', onVisualViewport);
-window.visualViewport?.addEventListener('scroll', onVisualViewport);
+let vvQueued = false;
+const queueViewport = () => {
+  if (vvQueued) return;
+  vvQueued = true;
+  requestAnimationFrame(() => {
+    vvQueued = false;
+    onVisualViewport();
+  });
+};
+window.visualViewport?.addEventListener('resize', queueViewport);
+window.visualViewport?.addEventListener('scroll', queueViewport);
 
 /** Na mobilu (karta je pod scénou ve sloupci) doscrollovat kartu do viditelné části. */
 function revealQuizCard() {
@@ -1108,6 +1120,33 @@ document.addEventListener('focusin', (e) => {
 function fsElement() {
   return document.fullscreenElement || document.webkitFullscreenElement;
 }
+// Safari na iPadu/iPhonu nedovolí psát na klávesnici ve skutečné celé obrazovce –
+// při klepnutí do pole ji samo ukončí. Při testu s psaním na dotykovém zařízení proto
+// celou obrazovku Safari nepoužíváme (menu se skryje jen stylem).
+let fsExitExpected = 0; // čas, do kdy ukončení celé obrazovky nebereme jako přání uživatele
+let lastTextFocus = 0;
+function typingTest() {
+  const cfg = state.quiz?.cfg || state.quizCfg;
+  return state.mode === 'test' && cfg.type !== 'cards';
+}
+function realFullscreenAllowed() {
+  return !(isTouch && typingTest());
+}
+function exitRealFullscreen() {
+  if (!fsElement()) return;
+  fsExitExpected = Date.now() + 1500;
+  try {
+    (document.exitFullscreen || document.webkitExitFullscreen)?.call(document)?.catch?.(() => {});
+  } catch {}
+}
+/** Volat při změně režimu/testu: na dotykovém zařízení s psaním opustit skutečnou celou obrazovku. */
+function syncRealFullscreen() {
+  if (state.focus && fsElement() && !realFullscreenAllowed()) exitRealFullscreen();
+}
+document.addEventListener('focusin', (e) => {
+  if (e.target.matches?.('input, textarea')) lastTextFocus = Date.now();
+});
+
 function setFocusMode(on) {
   state.focus = on;
   document.body.classList.toggle('focus', on);
@@ -1118,9 +1157,9 @@ function setFocusMode(on) {
   btn.setAttribute('aria-label', label);
   try {
     const el = document.documentElement;
-    if (on && !fsElement()) (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el)?.catch?.(() => {});
-    if (!on && fsElement()) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document)?.catch?.(() => {});
+    if (on && !fsElement() && realFullscreenAllowed()) (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el)?.catch?.(() => {});
   } catch {}
+  if (!on) exitRealFullscreen();
   tip.hidden = true;
   renderFocusStart();
   requestAnimationFrame(() => {
@@ -1140,8 +1179,12 @@ function renderFocusStart() {
 }
 $('#focusBtn').addEventListener('click', () => setFocusMode(!state.focus));
 const onFsChange = () => {
-  // uživatel opustil celou obrazovku (Esc) -> ukončit i režim
-  if (!fsElement() && state.focus) setFocusMode(false);
+  if (fsElement() || !state.focus) return;
+  // ukončili jsme ji sami, nebo ji ukončil prohlížeč kvůli klávesnici -> režim nechat
+  if (Date.now() < fsExitExpected) return;
+  if (Date.now() - lastTextFocus < 2000 || document.activeElement?.matches?.('input, textarea')) return;
+  // uživatel opustil celou obrazovku (Esc / gesto) -> ukončit i režim
+  setFocusMode(false);
 };
 document.addEventListener('fullscreenchange', onFsChange);
 document.addEventListener('webkitfullscreenchange', onFsChange);
