@@ -2,8 +2,14 @@
 
 Interaktivní 3D atlas lidské kostry (CZ / EN, latinské názvy).
 
+### 👉 Otevřít web: **https://uc0tf.github.io/bones/**
+
+Běží přímo v prohlížeči (počítač, tablet i mobil), nic se neinstaluje.
+
 - **Prozkoumat:** najeď myší na kost a zobrazí se její název česky, anglicky a latinsky. Oblasti: celá kostra, lebka, páteř, hrudník, horní končetina, ruka, pánev, dolní končetina, noha.
-- **Test:** zvýrazní se kost a napíšeš její název. Obtížnosti: lehká (název je vidět), střední (jen část písmen), těžká (bez nápovědy). Odpovídat lze česky, anglicky nebo latinsky.
+- **Test – psaní:** zvýrazní se kost a napíšeš její název. Obtížnosti: lehká (název je předepsaný v políčkách), střední (část písmen je vyplněná, zbytek doplníš do políček), těžká (bez nápovědy). Odpovídat lze česky, anglicky nebo latinsky.
+- **Test – kartičky:** bez psaní, kartičky se otáčejí a sám hodnotíš „Znám / Neznám“. Směr kost → název nebo název → kost.
+- **Vnitřní kosti:** průhledné okolí, řez modelem a skrývání kostí (klávesa H, ikona oka, na tabletu tlačítko „Skrýt“ v kartě kosti).
 
 ## Vývoj
 

@@ -493,6 +493,7 @@ function setGhost(on) {
 $('#xrayBtn').addEventListener('click', () => {
   if (state.mode === 'explore') return setGhost(!state.ghost);
   if (!state.quiz?.current) return;
+  if (state.quiz.cfg.type === 'cards' && state.quiz.cfg.cardDir === 'name2bone' && !state.quiz.flipped) return;
   state.quiz.xray = !state.quiz.xray;
   viewer.setTarget(state.quiz.current.id, { dim: state.quiz.xray });
   $('#xrayBtn').classList.toggle('active', state.quiz.xray);
@@ -558,6 +559,11 @@ const DIFFS = [
 const DIFF_LABEL = { easy: 'diffEasy', medium: 'diffMedium', hard: 'diffHard' };
 const LANG_LABEL = { cs: 'czech', en: 'english', la: 'latin' };
 
+function quizModeLabel(cfg) {
+  if (cfg.type === 'cards') return `${t('typeCards')} (${t(cfg.cardDir === 'name2bone' ? 'dirName2Bone' : 'dirBone2Name')})`;
+  return t(DIFF_LABEL[cfg.difficulty]);
+}
+
 function quizPool(cfg = state.quizCfg) {
   const list = entriesFor(state.region, state.side, { cartilage: cfg.cartilage, teeth: cfg.teeth });
   // stejné jméno vlevo i vpravo = jedna otázka (strana se vybere náhodně)
@@ -581,7 +587,7 @@ function renderTestPanel() {
         <h2 class="panel-title">${t('score')}</h2>
         <div class="score-big"><b>${okCount}</b><span>/ ${answered} · ${t('question')} ${Math.min(answered + 1, n)} ${t('of')} ${n}</span></div>
         <div class="bar"><i class="ok" style="width:${w('correct')}%"></i><i class="almost" style="width:${w('almost')}%"></i><i class="bad" style="width:${w('wrong')}%"></i></div>
-        <p class="test-meta">${t(DIFF_LABEL[q.cfg.difficulty])} · ${t(LANG_LABEL[q.cfg.answerLang])} · ${esc(region()[state.lang])}${region().sided ? ' (' + t(state.side === 'R' ? 'right' : 'left').toLowerCase() + ')' : ''}</p>
+        <p class="test-meta">${quizModeLabel(q.cfg)} · ${t(LANG_LABEL[q.cfg.answerLang])} · ${esc(region()[state.lang])}${region().sided ? ' (' + t(state.side === 'R' ? 'right' : 'left').toLowerCase() + ')' : ''}</p>
       </div>
       <div class="history">${q.answers
         .map((a) => {
@@ -604,16 +610,33 @@ function renderTestPanel() {
     cartilage: regionAll.some((e) => e.kind === 'disc' || e.kind === 'cartilage'),
   };
   const counts = [10, 20, 0];
+  cfg.type ??= 'write';
+  cfg.cardDir ??= 'bone2name';
+  const cards = cfg.type === 'cards';
   p.innerHTML = `<div class="test-setup">
       <h2 class="panel-title">${t('testSetup')}</h2>
-      <p class="intro">${t('testIntro')}</p>
+      <div class="field"><span class="label">${t('quizType')}</span>
+        <div class="type-switch" data-cfg="type">
+          <button class="type-btn ${cards ? '' : 'active'}" data-v="write"><span class="ti">⌨️</span><b>${t('typeWrite')}</b><small>${t('typeWriteDesc')}</small></button>
+          <button class="type-btn ${cards ? 'active' : ''}" data-v="cards"><span class="ti">🃏</span><b>${t('typeCards')}</b><small>${t('typeCardsDesc')}</small></button>
+        </div>
+      </div>
+      ${
+        cards
+          ? `<div class="field"><span class="label">${t('cardDir')}</span>
+        <div class="chip-row" data-cfg="cardDir">${['bone2name', 'name2bone']
+          .map((d) => `<button class="chip ${cfg.cardDir === d ? 'active' : ''}" data-v="${d}">${t(d === 'bone2name' ? 'dirBone2Name' : 'dirName2Bone')}</button>`)
+          .join('')}</div>
+      </div>`
+          : `<p class="intro">${t('testIntro')}</p>
       <div class="field"><span class="label">${t('difficulty')}</span>
         <div class="diff-options">${DIFFS.map(
           (d) => `<label class="diff-opt"><input type="radio" name="diff" value="${d.key}" ${cfg.difficulty === d.key ? 'checked' : ''}/>
             <div><div class="dname">${t(DIFF_LABEL[d.key])}</div><div class="ddesc">${t(DIFF_LABEL[d.key] + 'Desc')}</div></div><span class="dots">${d.dots}</span></label>`,
         ).join('')}</div>
-      </div>
-      <div class="field"><span class="label">${t('answerLang')}</span>
+      </div>`
+      }
+      <div class="field"><span class="label">${t(cards ? 'cardLang' : 'answerLang')}</span>
         <div class="chip-row" data-cfg="answerLang">${['cs', 'en', 'la']
           .map((l) => `<button class="chip ${cfg.answerLang === l ? 'active' : ''}" data-v="${l}">${t(LANG_LABEL[l])}</button>`)
           .join('')}</div>
@@ -678,8 +701,12 @@ function nextQuestion() {
   if (q.index >= q.questions.length) return showResults();
   q.current = q.questions[q.index];
   q.answered = false;
-  q.mask = maskName(q.current.base[q.cfg.answerLang]);
-  renderQuizCard();
+  q.flipped = false;
+  const name = q.current.base[q.cfg.answerLang];
+  // lehká: všechna písmena jako předepsaná nápověda; střední: jen část písmen je pevně daná
+  q.mask = q.cfg.difficulty === 'easy' ? maskName(name, Math.random, 0).map((m) => ({ ...m, ghost: m.letter })) : maskName(name);
+  if (q.cfg.type === 'cards') renderFlashcard();
+  else renderQuizCard();
   updateInset();
   showQuestionView();
   // na mobilu (sloupcové rozložení) posunout zpět na scénu
@@ -693,6 +720,14 @@ const ZOOM_SMALL = new Set(['skull', 'thorax', 'pelvis']);
 function showQuestionView(animate = true) {
   const q = state.quiz;
   const id = q.current.id;
+  // kartičky "název → kost": dokud není otočeno, kost se nezvýrazní
+  if (q.cfg.type === 'cards' && q.cfg.cardDir === 'name2bone' && !q.flipped) {
+    viewer.setTarget(null);
+    q.xray = false;
+    $('#xrayBtn').classList.remove('active');
+    viewer.frameBox(viewer.boxOf(q.visibleIds), regionViewDir(), { animate });
+    return;
+  }
   const { dir, score } = viewer.bestViewDir(id, candidateDirs());
   q.xray = score < 0.55;
   viewer.setTarget(id, { dim: q.xray });
@@ -720,86 +755,139 @@ function questionText(e) {
   return t('whatIsThisOther');
 }
 
+function quizTags(e, { group = true } = {}) {
+  const q = state.quiz;
+  const tags = [];
+  if (e.side) tags.push(`<span class="tag target">${esc(sideLabel(e, state.lang))}</span>`);
+  if (group) tags.push(`<span class="tag">${esc(GROUPS[e.group][state.lang])}</span>`);
+  tags.push(`<span class="tag">${q.index + 1} / ${q.questions.length}</span>`);
+  return tags.join('');
+}
+
 function renderQuizCard() {
   const q = state.quiz;
   const e = q.current;
   const L = q.cfg.answerLang;
-  const name = e.base[L];
   const card = $('#quizCard');
-  const tags = [];
-  if (e.side) tags.push(`<span class="tag target">${esc(sideLabel(e, state.lang))}</span>`);
-  if (q.cfg.difficulty !== 'hard') tags.push(`<span class="tag">${esc(GROUPS[e.group][state.lang])}</span>`);
-  tags.push(`<span class="tag">${q.index + 1} / ${q.questions.length}</span>`);
+  const slotsMode = q.cfg.difficulty !== 'hard';
 
-  let hint = '';
-  if (q.cfg.difficulty === 'easy') hint = `<div class="hint-full ${L === 'la' ? 'la' : ''}">${esc(name)}</div>`;
-  else if (q.cfg.difficulty === 'medium') hint = `<div class="slots" id="slots"></div>`;
+  const inputHtml = slotsMode
+    ? `<div class="slot-box" id="slotBox"><div class="slots" id="slots"></div>
+        <input class="slot-hidden" id="quizInput" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="${t('typeHere')}" /></div>
+       <div class="quiz-input-row slot-actions"><button class="btn ghost" id="quizSkip" type="button">${t('dontKnow')}</button><button class="btn primary" type="submit" id="quizSubmit">${t('check')}</button></div>`
+    : `<div class="quiz-input-row">
+        <input class="quiz-input" id="quizInput" placeholder="${t('typeHere')}" autocapitalize="off" autocorrect="off" spellcheck="false" />
+        <button class="btn primary" type="submit" id="quizSubmit">${t('check')}</button></div>`;
 
-  card.innerHTML = `<div class="quiz-top"><div class="quiz-q">${questionText(e)} <span style="color:var(--text-3);font-weight:500">(${t(LANG_LABEL[L]).toLowerCase()})</span></div><div class="quiz-tags">${tags.join('')}</div></div>
-    <div class="quiz-hint">${hint}</div>
-    <form class="quiz-input-row" id="quizForm" autocomplete="off">
-      <input class="quiz-input" id="quizInput" placeholder="${t('typeHere')}" autocapitalize="off" autocorrect="off" spellcheck="false" lang="${L === 'la' ? 'la' : L}" />
-      <button class="btn primary" type="submit" id="quizSubmit">${t('check')}</button>
-    </form>
+  card.innerHTML = `<div class="quiz-top"><div class="quiz-q">${questionText(e)} <span style="color:var(--text-3);font-weight:500">(${t(LANG_LABEL[L]).toLowerCase()})</span></div><div class="quiz-tags">${quizTags(e, { group: q.cfg.difficulty !== 'hard' })}</div></div>
+    <form id="quizForm" autocomplete="off">${inputHtml}</form>
     <div id="quizFeedback"></div>
-    <div class="quiz-foot"><span>${isTouch ? '' : t('pressEnter')}</span><button class="btn ghost" id="quizSkip" type="button">${t('dontKnow')}</button></div>`;
+    <div class="quiz-foot"><span>${isTouch ? '' : t(slotsMode ? 'pressEnterSlots' : 'pressEnter')}</span>${slotsMode ? '' : `<button class="btn ghost" id="quizSkip" type="button">${t('dontKnow')}</button>`}</div>`;
   card.hidden = false;
   const input = $('#quizInput');
-  if (q.cfg.difficulty === 'medium') {
-    renderSlots('');
-    input.addEventListener('input', () => renderSlots(input.value));
+
+  if (slotsMode) {
+    const open = q.mask.filter((m) => m.letter && (m.ghost || !m.shown)).length;
+    input.maxLength = open + 5;
+    const sync = () => {
+      // jen písmena/číslice; mezery a pevné znaky se doplňují samy
+      const clean = [...input.value.normalize('NFC')].filter((c) => /[\p{L}\p{N}]/u.test(c)).slice(0, open).join('');
+      if (clean !== input.value) input.value = clean;
+      input.setSelectionRange(clean.length, clean.length);
+      renderSlots();
+    };
+    input.addEventListener('input', (ev) => !ev.isComposing && sync());
+    input.addEventListener('compositionend', sync);
+    for (const ev of ['focus', 'blur', 'click', 'keyup']) input.addEventListener(ev, () => {
+      if (ev !== 'blur') input.setSelectionRange(input.value.length, input.value.length);
+      renderSlots();
+    });
+    renderSlots();
   }
+
   $('#quizForm').addEventListener('submit', (ev) => {
     ev.preventDefault();
     if (q.answered) return advance();
     if (!input.value.trim()) return input.focus();
-    answer(input.value);
+    answer(slotsMode ? assembleSlots() : input.value);
   });
   $('#quizSkip').addEventListener('click', () => (q.answered ? advance() : answer('')));
   if (!isTouch) setTimeout(() => input.focus({ preventScroll: true }), 50);
 }
 
-function renderSlots(typed) {
+/** Pole písmen: pevné znaky (mezery, interpunkce, odhalená písmena) + otevřená políčka. */
+function slotModel() {
   const q = state.quiz;
-  const typedChars = [...typed];
-  const words = [];
-  let cur = [];
-  q.mask.forEach((m, i) => {
-    if (m.char === ' ') {
-      words.push(cur);
-      cur = [];
-      return;
+  const typed = [...($('#quizInput')?.value || '')];
+  let k = 0;
+  return q.mask.map((m) => {
+    if (!m.letter) return { kind: 'sep', char: m.char };
+    if (m.shown && !m.ghost) return { kind: 'fixed', char: m.char };
+    const slot = { kind: 'open', char: m.char, typed: typed[k] || '', index: k, ghost: !!m.ghost };
+    k++;
+    return slot;
+  });
+}
+
+function assembleSlots() {
+  return slotModel()
+    .map((s) => (s.kind === 'open' ? s.typed || '·' : s.char))
+    .join('');
+}
+
+const sameLetter = (a, b) => stripDiacritics(a.toLowerCase()) === stripDiacritics(b.toLowerCase());
+
+function renderSlots() {
+  const q = state.quiz;
+  const box = $('#slots');
+  if (!box) return;
+  const model = slotModel();
+  const input = $('#quizInput');
+  const focused = document.activeElement === input && !q.answered;
+  const caret = input.value.length;
+  const words = [[]];
+  for (const s of model) {
+    if (s.kind === 'sep' && s.char === ' ') {
+      words.push([]);
+      continue;
     }
     let cls = 's';
-    let ch = '';
-    if (!m.letter) {
-      cls += ' punct';
-      ch = m.char;
-    } else if (m.shown) {
-      cls += ' shown';
-      ch = m.char;
-    } else if (typedChars[i] && typedChars[i] !== ' ') {
-      const ok = stripDiacritics(typedChars[i].toLowerCase()) === stripDiacritics(m.char.toLowerCase());
-      cls += ' typed' + (ok ? ' match' : '');
-      ch = typedChars[i];
+    let ch = s.char;
+    let ghost = '';
+    if (s.kind === 'sep') cls += ' punct';
+    else if (s.kind === 'fixed') cls += ' shown';
+    else {
+      ch = s.typed;
+      if (s.ghost && !s.typed) ghost = s.char; // předepsaná nápověda (lehká obtížnost)
+      if (s.typed) {
+        cls += ' typed';
+        // průběžná kontrola jen u lehké obtížnosti (u střední by prozradila odpověď)
+        if (q.cfg.difficulty === 'easy' || q.answered) cls += sameLetter(s.typed, s.char) ? ' match' : ' miss';
+      } else if (q.answered) {
+        cls += ' miss';
+      }
+      if (focused && s.index === caret) cls += ' caret';
     }
-    cur.push(`<span class="${cls}">${esc(ch)}</span>`);
-  });
-  words.push(cur);
-  $('#slots').innerHTML = words.map((w) => `<span class="word">${w.join('')}</span>`).join('');
+    words[words.length - 1].push(
+      `<span class="${cls}">${ghost ? `<i class="ghost">${esc(ghost)}</i>` : esc(ch)}</span>`,
+    );
+  }
+  box.innerHTML = words.map((w) => `<span class="word">${w.join('')}</span>`).join('');
 }
 
 function answer(input) {
   const q = state.quiz;
   const e = q.current;
   const L = q.cfg.answerLang;
-  const res = input ? checkAnswer(e, L, input, q.cfg.difficulty) : { result: 'wrong', expected: e.base[L] };
+  const res = input ? checkAnswer(e, L, input.replace(/·/g, ''), q.cfg.difficulty) : { result: 'wrong', expected: e.base[L] };
   q.answers.push({ id: e.id, input, result: res.result, skipped: !input });
   q.answered = true;
   const inp = $('#quizInput');
   inp.readOnly = true;
-  inp.classList.add(res.result === 'correct' ? 'ok' : res.result === 'almost' ? 'almost' : 'bad');
   const cls = res.result === 'correct' ? 'ok' : res.result === 'almost' ? 'almost' : 'bad';
+  inp.classList.add(cls);
+  $('#slotBox')?.classList.add(cls);
+  renderSlots();
   const title = !input ? t('skipped') : res.result === 'correct' ? t('correct') : res.result === 'almost' ? t('almost') : t('wrong');
   const showNames = res.result !== 'correct' || L !== 'la';
   $('#quizFeedback').innerHTML = `<div class="feedback ${cls}">
@@ -810,9 +898,85 @@ function answer(input) {
   const last = q.index + 1 >= q.questions.length;
   $('#quizSubmit').textContent = last ? t('finish') : t('next') + ' →';
   $('#quizSkip').hidden = true;
-  $('#quizSubmit').focus({ preventScroll: true });
+  // vstup zůstává fokusovaný -> Enter přejde na další otázku
+  if (!isTouch) (inp.classList.contains('slot-hidden') ? inp : $('#quizSubmit')).focus({ preventScroll: true });
   renderTestPanel();
 }
+
+// ------------------------------------------------------------------ kartičky
+function renderFlashcard() {
+  const q = state.quiz;
+  const e = q.current;
+  const L = q.cfg.answerLang;
+  const n2b = q.cfg.cardDir === 'name2bone';
+  const bigName = `<div class="fc-name ${L === 'la' ? 'la' : ''}">${esc(e.base[L])}</div>`;
+  const front = n2b
+    ? `<div class="fc-kicker">${t('whereIs')}</div>${bigName}<div class="fc-sub">${t('findIt')}</div>`
+    : `<div class="fc-kicker">${questionText(e)}</div><div class="fc-q">?</div><div class="fc-sub">${t('tapToFlip')}</div>`;
+  const back = `<div class="fc-kicker">${n2b ? t('highlighted') : esc(GROUPS[e.group][state.lang])}</div>${bigName}
+    <div class="fc-langs">${langLine(e, L)}</div>`;
+  const card = $('#quizCard');
+  card.innerHTML = `<div class="quiz-top"><div class="quiz-q">${t('typeCards')}</div><div class="quiz-tags">${quizTags(e, { group: n2b })}</div></div>
+    <button class="flash" id="flash" type="button" aria-label="${t('flipCard')}">
+      <span class="flash-inner"><span class="face front">${front}</span><span class="face back">${back}</span></span>
+    </button>
+    <div class="fc-actions" id="fcActions"></div>`;
+  card.hidden = false;
+  $('#flash').addEventListener('click', () => flipCard());
+  renderCardActions();
+  if (!isTouch) setTimeout(() => $('#flash')?.focus({ preventScroll: true }), 50);
+}
+
+function renderCardActions() {
+  const q = state.quiz;
+  const el = $('#fcActions');
+  if (!el) return;
+  const k = (s) => (isTouch ? '' : ` <kbd>${s}</kbd>`);
+  el.innerHTML = q.flipped
+    ? `<button class="btn fc-no" data-know="0">✗ ${t('didntKnow')}${k('←')}</button><button class="btn fc-yes" data-know="1">✓ ${t('knew')}${k('→')}</button>`
+    : `<button class="btn primary block" data-flip>${t('flipCard')}${k(t('space'))}</button>`;
+  el.onclick = (ev) => {
+    if (ev.target.closest('[data-flip]')) return flipCard();
+    const b = ev.target.closest('[data-know]');
+    if (b) rateCard(b.dataset.know === '1');
+  };
+}
+
+function flipCard() {
+  const q = state.quiz;
+  if (!q || q.cfg.type !== 'cards' || q.answered) return;
+  q.flipped = !q.flipped;
+  $('#flash')?.classList.toggle('flipped', q.flipped);
+  renderCardActions();
+  // "název → kost": po otočení ukázat kost na modelu
+  if (q.cfg.cardDir === 'name2bone') showQuestionView(true);
+}
+
+function rateCard(knew) {
+  const q = state.quiz;
+  if (!q || !q.flipped || q.answered) return;
+  q.answered = true;
+  q.answers.push({ id: q.current.id, input: null, result: knew ? 'correct' : 'wrong', card: true });
+  renderTestPanel();
+  advance();
+}
+
+addEventListener('keydown', (ev) => {
+  const q = state.quiz;
+  if (!q || q.cfg.type !== 'cards' || state.mode !== 'test' || $('#resultDlg').open) return;
+  if (ev.target.closest('input, textarea') || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  if (ev.key === ' ' || ev.key === 'Enter') {
+    // na zaměřeném tlačítku to vyřeší jeho vlastní kliknutí
+    if (ev.target.closest('button')) return;
+    ev.preventDefault();
+    flipCard();
+  } else if (q.flipped && (ev.key === 'ArrowRight' || ev.key === '2')) rateCard(true);
+  else if (q.flipped && (ev.key === 'ArrowLeft' || ev.key === '1')) rateCard(false);
+  else if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
+    ev.preventDefault();
+    flipCard();
+  }
+});
 
 /** Ostatní jazyky (kromě jazyka odpovědi) se štítky. */
 function langLine(e, L) {
@@ -839,15 +1003,15 @@ function showResults() {
   dlg.innerHTML = `<h2>${t('results')}</h2>
     <div class="result-head"><div class="ring" style="--p:${pct}"><span>${pct}%</span></div>
       <div><div style="font-size:18px;font-weight:600">${t('resultLine')(ok, n)}</div>
-      <div style="color:var(--text-2);margin-top:4px">${t(DIFF_LABEL[q.cfg.difficulty])} · ${t(LANG_LABEL[L])} · ${esc(region()[state.lang])}</div></div></div>
+      <div style="color:var(--text-2);margin-top:4px">${quizModeLabel(q.cfg)} · ${t(LANG_LABEL[L])} · ${esc(region()[state.lang])}</div></div></div>
     ${
       wrong.length
-        ? `<div class="panel-title">${t('mistakes')}</div><div class="mistakes">${wrong
+        ? `<div class="panel-title">${t(q.cfg.type === 'cards' ? 'cardsToReview' : 'mistakes')}</div><div class="mistakes">${wrong
             .map((a) => {
               const e = BY_ID[a.id];
               return `<div class="mistake"><div class="exp">${esc(e.base[L])} ${a.result === 'almost' ? '<span style="color:var(--warn)">≈</span>' : ''}</div>
               <div>${langLine(e, L)}</div>
-              ${a.input ? `<div class="yours">${t('yourAnswer')}: ${esc(a.input)}</div>` : `<div class="yours">${t('skipped')}</div>`}</div>`;
+              ${a.card ? '' : a.input ? `<div class="yours">${t('yourAnswer')}: ${esc(a.input)}</div>` : `<div class="yours">${t('skipped')}</div>`}</div>`;
             })
             .join('')}</div>`
         : `<p style="font-size:16px">${t('noMistakes')}</p>`

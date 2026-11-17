@@ -63,11 +63,12 @@ export function checkAnswer(entry, lang, input, difficulty) {
   return { result: 'wrong', expected };
 }
 
-/** Pro střední obtížnost: odhalí ~35 % písmen (minimálně první písmeno slova není garantováno). */
-export function maskName(name, seed = Math.random) {
+/** Pro střední obtížnost: odhalí zhruba `ratio` písmen názvu (náhodně). */
+export function maskName(name, seed = Math.random, ratio = 0.35) {
   const chars = [...name];
   const letterIdx = chars.map((c, i) => (/[\p{L}\p{N}]/u.test(c) ? i : -1)).filter((i) => i >= 0);
-  const revealCount = Math.max(1, Math.round(letterIdx.length * 0.35));
+  // alespoň jedno písmeno odhalit a alespoň jedno nechat k doplnění
+  const revealCount = ratio > 0 ? Math.min(letterIdx.length - 1, Math.max(1, Math.round(letterIdx.length * ratio))) : 0;
   const shuffled = [...letterIdx].sort(() => seed() - 0.5);
   const reveal = new Set(shuffled.slice(0, revealCount));
   return chars.map((c, i) => ({ char: c, letter: /[\p{L}\p{N}]/u.test(c), shown: !/[\p{L}\p{N}]/u.test(c) || reveal.has(i) }));
