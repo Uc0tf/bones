@@ -1522,3 +1522,73 @@ kbd {
     min-height: 120px;
   }
 }
+
+/* ------------------------------------------------ režim celé obrazovky */
+#focusBtn .i-exit,
+body.focus #focusBtn .i-enter {
+  display: none;
+}
+body.focus #focusBtn .i-exit {
+  display: block;
+}
+body.focus .topbar,
+body.focus .sidebar,
+body.focus .hint-bar {
+  display: none !important;
+}
+body.focus .layout {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  overflow: hidden;
+}
+.focus-start {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 12px 14px 12px 18px;
+  max-width: calc(100% - 32px);
+}
+.fs-meta {
+  font-size: 13px;
+  color: var(--text-2);
+}
+.focus-start .btn {
+  white-space: nowrap;
+  padding: 10px 18px;
+}
+@media (max-width: 900px) {
+  body.focus .layout {
+    grid-template-rows: 1fr;
+  }
+  body.focus .stage {
+    display: block;
+    height: 100%;
+    overflow: hidden;
+  }
+  body.focus[data-mode='test'] .stage {
+    display: flex;
+    flex-direction: column;
+  }
+  body.focus[data-mode='test'] .canvas-wrap {
+    position: relative;
+    flex: 1;
+    height: auto;
+    min-height: 0;
+  }
+  body.focus[data-mode='test'] .quiz-card {
+    flex: none;
+  }
+  .focus-start {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+}

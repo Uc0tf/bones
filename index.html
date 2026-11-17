@@ -66,6 +66,10 @@
         <section class="stage" id="stage">
           <div class="canvas-wrap" id="canvasWrap"></div>
           <div class="view-tools">
+            <button class="tool-btn" id="focusBtn" data-i18n-title="focusMode">
+              <svg class="i-enter" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+              <svg class="i-exit" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+            </button>
             <button class="tool-btn" id="resetBtn" data-i18n-title="resetView">⟲</button>
             <button class="tool-btn" id="rotateBtn" data-i18n-title="autoRotate">↻</button>
             <button class="tool-btn" id="xrayBtn" data-i18n-title="xray">
@@ -83,6 +87,7 @@
           <div class="hint-bar explore-only" id="hintBar"></div>
           <div class="info-card explore-only" id="infoCard" hidden></div>
           <div class="quiz-card test-only" id="quizCard" hidden></div>
+          <div class="focus-start test-only" id="focusStart" hidden></div>
           <div class="loading" id="loading">
             <div class="spinner"></div>
             <p data-i18n="loading"></p>

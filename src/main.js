@@ -522,6 +522,7 @@ function setMode(mode) {
     renderTestPanel();
     applyVisibility();
   }
+  renderFocusStart();
   // změna rozložení na mobilu
   requestAnimationFrame(() => viewer.resize());
 }
@@ -538,7 +539,9 @@ document.querySelectorAll('.lang-switch button').forEach((b) =>
     renderInfo();
     renderTestPanel();
     renderCutPanel();
-    if (state.quiz?.current) renderQuizCard();
+    renderFocusStart();
+    if (state.focus) $('#focusBtn').title = t('exitFocus');
+    if (state.quiz?.current) state.quiz.cfg.type === 'cards' ? renderFlashcard() : renderQuizCard();
     tip.hidden = true;
   }),
 );
@@ -679,6 +682,7 @@ function renderTestPanel() {
 }
 
 function startQuiz(onlyIds) {
+  $('#focusStart').hidden = true;
   const cfg = { ...state.quizCfg };
   let pool = onlyIds ? onlyIds.map((id) => BY_ID[id]) : quizPool(cfg);
   pool = shuffle(pool);
@@ -1030,6 +1034,7 @@ function showResults() {
     if (!act) return;
     dlg.close();
     endQuiz(false);
+    if (act === 'new' && state.focus) setFocusMode(false);
     if (act === 'again') startQuiz(ids);
     if (act === 'retry') startQuiz(wrongIds);
   };
@@ -1039,6 +1044,7 @@ function showResults() {
 
 function endQuiz(rerender = true) {
   state.quiz = null;
+  queueMicrotask(renderFocusStart);
   viewer.setTarget(null);
   $('#quizCard').hidden = true;
   updateInset();
@@ -1094,6 +1100,55 @@ function revealQuizCard() {
 }
 document.addEventListener('focusin', (e) => {
   if (isTouch && e.target.id === 'quizInput') setTimeout(revealQuizCard, 350);
+});
+
+// ------------------------------------------------------------------ režim celé obrazovky
+// Skryje lištu a boční panel; zůstane jen model (a v testu karta s otázkou).
+// Kde to prohlížeč umí, přepne i do skutečné celé obrazovky (Fullscreen API).
+function fsElement() {
+  return document.fullscreenElement || document.webkitFullscreenElement;
+}
+function setFocusMode(on) {
+  state.focus = on;
+  document.body.classList.toggle('focus', on);
+  const btn = $('#focusBtn');
+  btn.classList.toggle('active', on);
+  const label = t(on ? 'exitFocus' : 'focusMode');
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+  try {
+    const el = document.documentElement;
+    if (on && !fsElement()) (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el)?.catch?.(() => {});
+    if (!on && fsElement()) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document)?.catch?.(() => {});
+  } catch {}
+  tip.hidden = true;
+  renderFocusStart();
+  requestAnimationFrame(() => {
+    viewer.resize();
+    updateInset();
+  });
+}
+function renderFocusStart() {
+  const el = $('#focusStart');
+  const show = state.focus && state.mode === 'test' && !state.quiz;
+  el.hidden = !show;
+  if (!show) return;
+  const n = quizPool().length;
+  el.innerHTML = `<div class="fs-meta">${esc(region()[state.lang])} · ${quizModeLabel(state.quizCfg)} · ${t(LANG_LABEL[state.quizCfg.answerLang])}</div>
+    <button class="btn primary" ${n ? '' : 'disabled'}>${t('start')} →</button>`;
+  el.querySelector('button').onclick = () => startQuiz();
+}
+$('#focusBtn').addEventListener('click', () => setFocusMode(!state.focus));
+const onFsChange = () => {
+  // uživatel opustil celou obrazovku (Esc) -> ukončit i režim
+  if (!fsElement() && state.focus) setFocusMode(false);
+};
+document.addEventListener('fullscreenchange', onFsChange);
+document.addEventListener('webkitfullscreenchange', onFsChange);
+addEventListener('keydown', (e) => {
+  if (e.target.closest('input, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'f' || e.key === 'F') setFocusMode(!state.focus);
+  else if (e.key === 'Escape' && state.focus && !fsElement() && !$('#resultDlg').open) setFocusMode(false);
 });
 
 // ------------------------------------------------------------------ boot

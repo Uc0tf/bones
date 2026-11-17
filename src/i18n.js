@@ -31,6 +31,8 @@ export const STRINGS = {
     kind: { bone: 'kost', tooth: 'zub', disc: 'ploténka', cartilage: 'chrupavka' },
     // test
     testSetup: 'Nastavení testu',
+    focusMode: 'Celá obrazovka (F)',
+    exitFocus: 'Ukončit celou obrazovku (F / Esc)',
     quizType: 'Typ testu',
     typeWrite: 'Psaní',
     typeWriteDesc: 'Napíšeš název',
@@ -135,6 +137,8 @@ export const STRINGS = {
     theme: 'Toggle theme',
     kind: { bone: 'bone', tooth: 'tooth', disc: 'disc', cartilage: 'cartilage' },
     testSetup: 'Quiz settings',
+    focusMode: 'Full screen (F)',
+    exitFocus: 'Exit full screen (F / Esc)',
     quizType: 'Quiz type',
     typeWrite: 'Typing',
     typeWriteDesc: 'Type the name',
