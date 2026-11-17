@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Kostra člověka · 3D atlas</title>
+    <meta name="description" content="Interaktivní 3D atlas lidské kostry s názvy kostí česky, anglicky a latinsky. Prozkoumávejte a testujte se." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦴</text></svg>" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,500&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">🦴</span>
+          <div>
+            <h1 data-i18n="title"></h1>
+            <p data-i18n="subtitle"></p>
+          </div>
+        </div>
+        <nav class="mode-tabs" role="tablist">
+          <button role="tab" data-mode="explore" data-i18n="explore"></button>
+          <button role="tab" data-mode="test" data-i18n="test"></button>
+        </nav>
+        <div class="top-actions">
+          <div class="lang-switch" role="group" aria-label="Language">
+            <button data-lang="cs">CZ</button>
+            <button data-lang="en">EN</button>
+          </div>
+          <button class="icon-btn" id="themeBtn" data-i18n-title="theme" aria-label="theme">◐</button>
+          <button class="icon-btn" id="aboutBtn" data-i18n-title="about" aria-label="about">ⓘ</button>
+        </div>
+      </header>
+
+      <main class="layout">
+        <aside class="sidebar" id="sidebar">
+          <section class="panel">
+            <h2 class="panel-title" data-i18n="regions"></h2>
+            <div class="region-grid" id="regionGrid"></div>
+            <div class="side-row" id="sideRow">
+              <span data-i18n="side"></span>
+              <div class="segmented" id="sideSeg">
+                <button data-side="R" data-i18n="right"></button>
+                <button data-side="L" data-i18n="left"></button>
+              </div>
+            </div>
+          </section>
+
+          <!-- PROZKOUMAT -->
+          <section class="panel grow explore-only" id="bonePanel">
+            <div class="panel-head">
+              <h2 class="panel-title" data-i18n="bones"></h2>
+              <span class="count" id="boneCount"></span>
+            </div>
+            <input type="search" class="search" id="search" autocomplete="off" />
+            <div class="toggles">
+              <label class="toggle"><input type="checkbox" id="optCartilage" checked /><span data-i18n="showCartilage"></span></label>
+              <label class="toggle"><input type="checkbox" id="optTeeth" checked /><span data-i18n="showTeeth"></span></label>
+            </div>
+            <div class="bone-list" id="boneList"></div>
+          </section>
+
+          <!-- TEST -->
+          <section class="panel grow test-only" id="testPanel"></section>
+        </aside>
+
+        <section class="stage" id="stage">
+          <div class="canvas-wrap" id="canvasWrap"></div>
+          <div class="view-tools">
+            <button class="tool-btn" id="resetBtn" data-i18n-title="resetView">⟲</button>
+            <button class="tool-btn" id="rotateBtn" data-i18n-title="autoRotate">↻</button>
+            <button class="tool-btn test-only" id="xrayBtn" data-i18n-title="xray">◌</button>
+          </div>
+          <div class="tooltip" id="tooltip" hidden></div>
+          <div class="hint-bar explore-only" id="hintBar"></div>
+          <div class="info-card explore-only" id="infoCard" hidden></div>
+          <div class="quiz-card test-only" id="quizCard" hidden></div>
+          <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p data-i18n="loading"></p>
+            <div class="progress"><div id="loadBar"></div></div>
+          </div>
+        </section>
+      </main>
+
+      <dialog id="aboutDlg" class="dialog">
+        <form method="dialog">
+          <h2 data-i18n="about"></h2>
+          <div id="aboutBody"></div>
+          <button class="btn primary" data-i18n="close"></button>
+        </form>
+      </dialog>
+      <dialog id="resultDlg" class="dialog wide"></dialog>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

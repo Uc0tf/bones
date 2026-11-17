@@ -1,0 +1,32 @@
+# Kostra člověka · Human Skeleton
+
+Interaktivní 3D atlas lidské kostry (CZ / EN, latinské názvy).
+
+- **Prozkoumat:** najeď myší na kost a zobrazí se její název česky, anglicky a latinsky. Oblasti: celá kostra, lebka, páteř, hrudník, horní končetina, ruka, pánev, dolní končetina, noha.
+- **Test:** zvýrazní se kost a napíšeš její název. Obtížnosti: lehká (název je vidět), střední (jen část písmen), těžká (bez nápovědy). Odpovídat lze česky, anglicky nebo latinsky.
+
+## Vývoj
+
+```bash
+npm install
+npm run dev          # vývojový server
+npm run build        # produkční build do dist/
+npm run build:model  # znovu stáhne a zpracuje 3D modely -> public/models/skeleton.glb
+```
+
+Vygenerovaný model `public/models/skeleton.glb` je součástí repozitáře, takže `build:model` je potřeba jen při změně katalogu kostí (`src/data/catalog.js`).
+
+## Nasazení
+
+```bash
+npm run deploy   # sestaví web a nahraje dist/ do větve gh-pages
+```
+
+GitHub Pages servíruje větev `gh-pages` (Settings → Pages → Deploy from a branch → `gh-pages` / root).
+Složku `dist/` lze nahrát i na jakýkoli statický hosting (Netlify, Vercel…).
+
+## Zdroje a licence
+
+- 3D modely: [BodyParts3D](https://dbarchive.biosciencedbc.jp/en/bodyparts3d/), © The Database Center for Life Science, licence [CC BY-SA 2.1 Japan](https://creativecommons.org/licenses/by-sa/2.1/jp/deed.en). Modely jsou převzaty přes [mirror na GitHubu](https://github.com/Kevin-Mattheus-Moerman/BodyParts3D) a zjednodušeny pro web. Odvozený soubor `public/models/skeleton.glb` je šířen pod stejnou licencí (CC BY-SA).
+- Názvosloví: latinsky podle Terminologia Anatomica, česky podle běžné české anatomické terminologie.
+- Model neobsahuje kostrč a sluchové kůstky (nejsou v BodyParts3D 3.0).
