@@ -1592,3 +1592,28 @@ body.focus .layout {
     text-align: center;
   }
 }
+
+/* Celá obrazovka na dotykových zařízeních (iPad): systémová lišta s časem/baterií
+   a indikátor dole zasahují do stránky -> odsadit ovládací prvky od okrajů. */
+.view-tools,
+.cut-panel {
+  top: calc(14px + env(safe-area-inset-top, 0px));
+}
+.view-tools {
+  right: calc(14px + env(safe-area-inset-right, 0px));
+}
+@media (hover: none) {
+  body.focus .view-tools,
+  body.focus .cut-panel {
+    top: calc(14px + max(env(safe-area-inset-top, 0px), 30px));
+  }
+  body.focus .quiz-card,
+  body.focus .focus-start {
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+}
+@media (hover: none) and (max-width: 900px) {
+  body.focus[data-mode='test'] .quiz-card {
+    padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+}
